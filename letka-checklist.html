@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Летка — Чек-листы</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: #14161a;
+    --surface: #1d2025;
+    --surface-2: #23272d;
+    --line: #2c3138;
+    --text: #edeae3;
+    --text-dim: #8d939c;
+    --amber: #e2a13d;
+    --amber-dim: #6b5530;
+    --sage: #7fae7a;
+    --sage-dim: #2a3a2a;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .screen{ display:none; flex-direction:column; min-height:100vh; }
+  .screen.active{ display:flex; }
+
+  /* ---------- Menu / employee select (shared look) ---------- */
+  .center-screen{
+    justify-content:center;
+    padding: 32px 24px 48px;
+    text-align:center;
+  }
+  .glass-icon{ font-size:44px; margin-bottom:6px; }
+  .start-title{
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.2px;
+    margin: 4px 0 4px;
+  }
+  .start-sub{
+    color: var(--text-dim);
+    font-size:15px;
+    margin-bottom:28px;
+  }
+  .option-list{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .option-btn{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    font-size:17px;
+    font-weight:600;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .option-btn:active{ background: var(--surface-2); border-color: var(--amber-dim); }
+  .option-btn .arrow{ color: var(--text-dim); font-size:18px; }
+  .option-btn.disabled{
+    opacity:0.55;
+  }
+  .option-btn .sub{
+    display:block;
+    font-size:12.5px;
+    font-weight:500;
+    color: var(--text-dim);
+    margin-top:2px;
+  }
+  .back-link{
+    position:sticky;
+    top:0;
+    background:transparent;
+    color: var(--text-dim);
+    font-size:14px;
+    padding: 16px 20px 0;
+    text-align:left;
+    align-self:flex-start;
+  }
+
+  /* ---------- Checklist screen ---------- */
+  #screen-checklist{ padding-bottom: 110px; }
+
+  .top-bar{
+    position:sticky;
+    top:0;
+    z-index:5;
+    background: var(--bg);
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .top-bar-title{
+    font-size:18px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .top-bar-meta{
+    color: var(--text-dim);
+    font-size:13px;
+    margin-top:4px;
+  }
+  .progress-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:14px;
+    font-size:13px;
+    color: var(--text-dim);
+  }
+  .progress-count{
+    font-weight:700;
+    color: var(--text);
+    font-size:14px;
+  }
+  .progress-track{
+    height:6px;
+    background: var(--surface-2);
+    border-radius:999px;
+    margin-top:8px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    border-radius:999px;
+    transition: width .25s ease;
+    width:0%;
+  }
+
+  .section{
+    padding: 22px 20px 4px;
+  }
+  .section-heading{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    font-weight:700;
+    color: var(--text-dim);
+    margin-bottom:10px;
+  }
+  .section-heading .emoji{ font-size:16px; }
+
+  .item-wrap{ margin-bottom: 10px; }
+
+  .item{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 15px 16px;
+    transition: background .15s ease, border-color .15s ease, opacity .15s ease;
+  }
+  .item:active{ background: var(--surface-2); }
+  .item.done{
+    background: var(--sage-dim);
+    border-color: rgba(127,174,122,0.35);
+  }
+  .item.done-comment{
+    background: rgba(226,161,61,0.12);
+    border-color: rgba(226,161,61,0.4);
+  }
+  .checkbox{
+    flex: 0 0 26px;
+    width:26px;
+    height:26px;
+    border-radius:8px;
+    border: 2px solid var(--text-dim);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    font-weight:700;
+    color: transparent;
+    transition: all .15s ease;
+  }
+  .item.done .checkbox{
+    background: var(--sage);
+    border-color: var(--sage);
+    color: #10160f;
+  }
+  .item.done-comment .checkbox{
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #241a08;
+  }
+  .item-text{
+    font-size:15.5px;
+    line-height:1.35;
+    color: var(--text);
+    flex: 1 1 auto;
+  }
+  .item.done .item-text{
+    color: var(--text-dim);
+    text-decoration: line-through;
+    text-decoration-color: rgba(141,147,156,0.6);
+  }
+  .item.done-comment .item-text{
+    text-decoration: none;
+  }
+  .note-toggle{
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    font-size: 15px;
+    opacity: 0.45;
+    padding: 4px;
+  }
+  .note-toggle.has-note{ opacity: 1; }
+  .item-time{
+    font-size:12px;
+    color: var(--sage);
+    flex-shrink:0;
+    padding-left:2px;
+  }
+  .note-area{
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-top:none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 12px 14px 14px;
+    margin-top:-8px;
+  }
+  .note-textarea{
+    width:100%;
+    min-height:60px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    resize: vertical;
+  }
+  .note-save-btn{
+    margin-top:8px;
+    width:100%;
+    padding:10px;
+    border-radius: 10px;
+    border:none;
+    background: var(--amber-dim);
+    color: var(--text);
+    font-size:13.5px;
+    font-weight:600;
+  }
+  .note-save-btn:active{ background: var(--amber); color:#241a08; }
+
+  .bottom-bar{
+    position:fixed;
+    bottom:0;
+    left:50%;
+    transform: translateX(-50%);
+    width:100%;
+    max-width:480px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    padding: 20px 20px 24px;
+  }
+  .finish-hint{
+    text-align:center;
+    color: var(--text-dim);
+    font-size:13px;
+    margin-bottom:10px;
+  }
+  .finish-hint.angry{
+    color: #e6796a;
+    font-weight: 700;
+  }
+  .finish-btn{
+    width:100%;
+    padding:17px;
+    border-radius: var(--radius);
+    border:none;
+    font-size:16px;
+    font-weight:700;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    transition: background .2s ease, color .2s ease;
+  }
+  .finish-btn.shake{
+    animation: shake .4s ease;
+  }
+  @keyframes shake{
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  .finish-btn.ready{
+    background: var(--amber);
+    color: #241a08;
+  }
+  .finish-btn.ready:active{ background: #cb8f34; }
+
+  /* ---------- Confirmation screen ---------- */
+  #screen-done{
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding: 40px 28px;
+  }
+  .done-badge{
+    font-size:48px;
+    margin-bottom:10px;
+  }
+  .done-title{
+    font-size:20px;
+    font-weight:700;
+    margin-bottom:22px;
+  }
+  .done-reaction{
+    background: rgba(214,90,74,0.14);
+    border: 1px solid rgba(214,90,74,0.4);
+    color: #e6796a;
+    font-size: 14.5px;
+    font-weight: 600;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 18px;
+    width: 100%;
+  }
+  .done-card{
+    width:100%;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align:left;
+    margin-bottom:28px;
+  }
+  .done-row{
+    display:flex;
+    justify-content:space-between;
+    padding: 9px 0;
+    font-size:14.5px;
+    border-bottom: 1px solid var(--line);
+  }
+  .done-row:last-child{ border-bottom:none; }
+  .done-row .label{ color: var(--text-dim); }
+  .done-row .value{ font-weight:600; }
+  .done-row .value.ok{ color: var(--sage); }
+
+  .home-btn{
+    width:100%;
+    padding:15px;
+    border-radius: var(--radius);
+    border:1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font-size:15px;
+    font-weight:600;
+  }
+  .home-btn:active{ background: var(--surface-2); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SCREEN 0: choose checklist type -->
+  <div class="screen active center-screen" id="screen-menu">
+    <div class="glass-icon">🍸</div>
+    <div class="start-title">Летка — чек-листы</div>
+    <div class="start-sub">Выберите чек-лист</div>
+    <div class="option-list" id="checklist-type-list"></div>
+  </div>
+
+  <!-- SCREEN 1: employee select -->
+  <div class="screen center-screen" id="screen-start">
+    <div class="back-link" id="back-to-menu">← К списку чек-листов</div>
+    <div class="glass-icon" id="start-icon">🍸</div>
+    <div class="start-title" id="start-title">Закрытие бара</div>
+    <div class="start-sub">Выберите ответственного</div>
+    <div class="option-list" id="employee-list"></div>
+  </div>
+
+  <!-- SCREEN 2: checklist -->
+  <div class="screen" id="screen-checklist">
+    <div class="back-link" id="back-link">← Сменить сотрудника</div>
+    <div class="top-bar">
+      <div class="top-bar-title" id="checklist-title">🍸 Закрытие бара</div>
+      <div class="top-bar-meta" id="checklist-meta"></div>
+      <div class="progress-row">
+        <span>Прогресс</span>
+        <span class="progress-count" id="progress-count">0 / 0 выполнено</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div id="sections"></div>
+    <div class="bottom-bar">
+      <div class="finish-hint" id="finish-hint">Выполнено 0 из 0 пунктов</div>
+      <button class="finish-btn" id="finish-btn" data-ready="0">🔒 Завершить закрытие</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: done -->
+  <div class="screen center-screen" id="screen-done">
+    <div class="done-badge" id="done-badge">🟢</div>
+    <div class="done-title" id="done-title">Закрытие завершено</div>
+    <div class="done-reaction" id="done-reaction" style="display:none;"></div>
+    <div class="done-card" id="done-card"></div>
+    <button class="home-btn" id="home-btn">← Вернуться к списку чек-листов</button>
+  </div>
+
+</div>
+
+<script>
+/* ============ CONFIGURATION ============ */
+
+// Easy to edit: list of employees shown on the employee-select screen.
+const EMPLOYEES = ["Никита", "Оля", "Семен", "Антон"];
+
+// Checklist definitions — exactly as specified, grouped by section.
+const CHECKLISTS = {
+  bar_close: {
+    label: "Закрытие бара",
+    icon: "🍸",
+    available: true,
+    sections: [
+      { emoji: "🧹", title: "Бар", items: [
+        "Вся посуда вымыта и убрана",
+        "Барная стойка и рабочие поверхности вымыты",
+        "Раковина вымыта",
+        "Инвентарь вымыт и убран",
+        "Скоропортящиеся продукты убраны в холодильник",
+        "Все продукты закрыты",
+      ]},
+      { emoji: "🍋", title: "Заготовки", items: [
+        "Проверены все заготовки",
+        "Всё подписано датами",
+        "Заготовки, которых не хватает на завтра, отмечены",
+        "Стоп-лист заполнен",
+        "Информация для следующей смены передана",
+      ]},
+      { emoji: "🍾", title: "Товар", items: [
+        "Пустые бутылки убраны",
+        "Нехватка товара отмечена",
+        "Всё лишнее убрано со столов и рабочих поверхностей",
+      ]},
+      { emoji: "💰", title: "Касса", items: [
+        "Все чеки и операции закрыты",
+        "Касса сверена",
+        "Наличные проверены",
+        "Проблемные/незакрытые позиции переданы менеджеру",
+      ]},
+      { emoji: "🗑", title: "Мусор", items: [
+        "Мусор вынесен",
+        "Все мусорки очищены",
+        "Зона мусора приведена в порядок",
+      ]},
+      { emoji: "🔌", title: "Оборудование", items: [
+        "Блендеры выключены",
+        "Чайники выключены",
+        "Нагревательное оборудование выключено",
+        "Холодильники и морозилки НЕ ВЫКЛЮЧАТЬ",
+        "Проверено остальное оборудование",
+      ]},
+      { emoji: "🚪", title: "Финал", items: [
+        "Бар оставлен чистым",
+        "Проверена веранда",
+        "Проверены свет в подсобных помещениях",
+        "Проверен туалет",
+        "Музыка выключена",
+        "Кондиционеры/выключены",
+        "Все окна и двери закрыты",
+        "Заявки по средам и четвергам отправлены",
+      ]},
+    ],
+  },
+
+  kitchen_close: {
+    label: "Закрытие кухни",
+    icon: "🍳",
+    available: true,
+    sections: [
+      { emoji: "🔥", title: "Тепловое оборудование", items: [
+        "Плита выключена",
+        "Гриль выключен",
+        "Духовка выключена",
+        "Всё остальное тепловое оборудование выключено",
+        "Проверено отсутствие оставленного включённым оборудования",
+      ]},
+      { emoji: "🧼", title: "Рабочие поверхности", items: [
+        "Все рабочие поверхности вымыты и продезинфицированы",
+        "Разделочные доски вымыты и убраны",
+        "Ножи вымыты и убраны",
+        "Инвентарь вымыт и убран на свои места",
+        "Раковины вымыты",
+        "Краны и поверхности вокруг раковин протёрты",
+        "Пол на кухне вымыт",
+      ]},
+      { emoji: "🥩", title: "Продукты и заготовки", items: [
+        "Все продукты убраны в холодильники/морозилки",
+        "Все открытые продукты закрыты",
+        "Все контейнеры подписаны",
+        "Проверены сроки годности (воняет-не воняет)",
+        "Просроченные продукты утилизированы",
+        "Заготовки на завтра проверены",
+        "Недостающие заготовки отмечены",
+        "Стоп-лист заполнен",
+        "Информация для следующей смены передана",
+      ]},
+      { emoji: "❄️", title: "Холодильники", items: [
+        "Дверцы холодильников закрыты",
+        "Продукты стоят на своих местах",
+        "В холодильниках нет открытых/неподписанных продуктов",
+        "Морозильники закрыты",
+      ]},
+      { emoji: "🗑", title: "Мусор", items: [
+        "Весь мусор вынесен",
+        "Мусорные ведра вымыты при необходимости",
+        "Установлены новые пакеты",
+        "Зона мусора приведена в порядок",
+      ]},
+      { emoji: "🧽", title: "Финальная уборка", items: [
+        "Пол полностью вымыт",
+        "Стены/фартуки возле рабочих зон протёрты",
+        "Оборудование снаружи протёрто",
+        "Рабочие столы чистые",
+        "Всё кухонное оборудование и инвентарь находятся на своих местах",
+        "Кухня оставлена в состоянии, в котором её можно сразу открывать утром",
+      ]},
+      { emoji: "🚪", title: "Перед уходом", items: [
+        "Заявки по средам и четвергам отправлены",
+        "Проверено всё оборудование",
+        "Вода закрыта там, где это предусмотрено",
+        "Свет выключен",
+        "Окна закрыты",
+        "Двери закрыты",
+        "Кондиционер выключен",
+      ]},
+    ],
+  },
+};
+
+// If closing is finished at or after this time (24h), the done screen
+// shows one of the reaction phrases below instead of a plain "well done".
+const LATE_CLOSE_HOUR = 1;
+const LATE_CLOSE_MINUTE = 30;
+
+const LATE_REACTIONS = [
+  "Ну пиздец, во сколько закрываем-то?!",
+  "Ну как так-то?! Опять до утра провозились.",
+  "Ёбана в рот, что-то совсем не то со временем закрытия.",
+  "Это уже не закрытие, а произведение искусства по затягиванию.",
+];
+
+// Shown when someone taps the finish button before all items are done.
+const INCOMPLETE_CLICK_REACTIONS = [
+  "Куда жмёшь, ещё не всё сделано!",
+  "Рано, там ещё дел до фига.",
+  "Не гони, сначала закрой всё до конца.",
+  "Ещё не всё отмечено — не хитри.",
+];
+
+// ⚠️ Быстрый вариант без сервера: токен бота уходит в открытый код страницы.
+// Любой, кто откроет исходный код приложения, сможет его увидеть и слать
+// сообщения от имени бота. Замени плейсхолдеры на реальные значения.
+const TELEGRAM_BOT_TOKEN = "8841669164:AAFGqqwndkIzZJZLai3Gq3sd6Jg0-zJp-og";
+// Chat id'ы всех, кому должен приходить отчёт о закрытии.
+// Чтобы добавить ещё одного человека — просто допиши его chat_id в массив.
+const REPORT_RECIPIENTS = ["85970845"];
+
+function buildReportText(record, cfg, isLate){
+  const startD = new Date(record.started_at);
+  const endD = new Date(record.completed_at);
+
+  const commentedItems = record.completed_items.filter(i => !i.checked && i.comment);
+
+  let text = "";
+  text += `${cfg.icon} <b>${cfg.label}</b>\n`;
+  text += `Ответственный: <b>${record.employee}</b>\n`;
+  text += `Дата: ${record.date}\n`;
+  text += `Начало: ${pad(startD.getHours())}:${pad(startD.getMinutes())} · Завершение: ${pad(endD.getHours())}:${pad(endD.getMinutes())}\n`;
+  text += `Выполнено: ${record.completed_items.length} / ${record.completed_items.length}\n`;
+
+  if (isLate){
+    text += `\n⚠️ Закрытие завершено поздно.\n`;
+  }
+
+  if (commentedItems.length){
+    text += `\n💬 Пункты с комментарием (не отмечены физически):\n`;
+    commentedItems.forEach(i => {
+      text += `— ${i.text}: ${i.comment}\n`;
+    });
+  }
+
+  return text;
+}
+
+function sendReportToManager(record, cfg, isLate){
+  if (TELEGRAM_BOT_TOKEN.startsWith("ВСТАВЬ") || REPORT_RECIPIENTS.length === 0) {
+    console.warn("Отчёт не отправлен: укажи TELEGRAM_BOT_TOKEN и хотя бы один chat_id в REPORT_RECIPIENTS.");
+    return;
+  }
+  const text = buildReportText(record, cfg, isLate);
+  REPORT_RECIPIENTS.forEach(chatId => {
+    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    }).catch(err => console.error(`Не удалось отправить отчёт получателю ${chatId}:`, err));
+  });
+}
+
+/* ============ STATE ============ */
+
+let state = {
+  checklistType: null,
+  employee: null,
+  startedAt: null,
+  completedAt: null,
+  items: [],      // { section, emoji, text, done, timeStr }
+  totalItems: 0,
+};
+
+function buildItemsArray(checklistType){
+  const arr = [];
+  CHECKLISTS[checklistType].sections.forEach(section => {
+    section.items.forEach(text => {
+      arr.push({ section: section.title, emoji: section.emoji, text, checked: false, comment: "", timeStr: null });
+    });
+  });
+  return arr;
+}
+
+// An item counts toward progress if it's checked OR has an explanatory comment.
+function isItemDone(item){
+  return item.checked || item.comment.trim().length > 0;
+}
+
+/* ============ HELPERS ============ */
+
+function pad(n){ return n.toString().padStart(2, "0"); }
+
+function nowTimeStr(){
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function nowISODate(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function nowISO(){
+  return new Date().toISOString();
+}
+
+function formatDateRu(){
+  const d = new Date();
+  const months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/* ============ RENDER: menu screen ============ */
+
+function renderMenu(){
+  const list = document.getElementById("checklist-type-list");
+  list.innerHTML = "";
+  Object.entries(CHECKLISTS).forEach(([key, cfg]) => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn" + (cfg.available ? "" : " disabled");
+    btn.innerHTML = `<span>${cfg.icon} ${cfg.label}${cfg.available ? "" : `<span class="sub">Скоро будет доступно</span>`}</span><span class="arrow">›</span>`;
+    if (cfg.available){
+      btn.addEventListener("click", () => openEmployeeScreen(key));
+    }
+    list.appendChild(btn);
+  });
+}
+
+/* ============ RENDER: employee screen ============ */
+
+function openEmployeeScreen(checklistType){
+  state.checklistType = checklistType;
+  const cfg = CHECKLISTS[checklistType];
+  document.getElementById("start-icon").textContent = cfg.icon;
+  document.getElementById("start-title").textContent = cfg.label;
+  renderEmployees();
+  showScreen("screen-start");
+}
+
+function renderEmployees(){
+  const list = document.getElementById("employee-list");
+  list.innerHTML = "";
+  EMPLOYEES.forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.innerHTML = `<span>${name}</span><span class="arrow">›</span>`;
+    btn.addEventListener("click", () => startChecklist(name));
+    list.appendChild(btn);
+  });
+}
+
+/* ============ RENDER: checklist screen ============ */
+
+function startChecklist(name){
+  const cfg = CHECKLISTS[state.checklistType];
+
+  state.employee = name;
+  state.startedAt = nowISO();
+  state.completedAt = null;
+  state.items = buildItemsArray(state.checklistType);
+  state.totalItems = state.items.length;
+
+  document.getElementById("checklist-title").textContent = `${cfg.icon} ${cfg.label}`;
+  document.getElementById("checklist-meta").textContent = `Ответственный: ${name} · ${formatDateRu()}`;
+  document.getElementById("finish-btn").textContent = "🔒 Завершить закрытие";
+  renderSections();
+  updateProgress();
+  showScreen("screen-checklist");
+}
+
+function renderSections(){
+  const container = document.getElementById("sections");
+  container.innerHTML = "";
+  const cfg = CHECKLISTS[state.checklistType];
+  let globalIndex = 0;
+
+  cfg.sections.forEach(section => {
+    const secDiv = document.createElement("div");
+    secDiv.className = "section";
+
+    const heading = document.createElement("div");
+    heading.className = "section-heading";
+    heading.innerHTML = `<span class="emoji">${section.emoji}</span><span>${section.title}</span>`;
+    secDiv.appendChild(heading);
+
+    section.items.forEach(() => {
+      const idx = globalIndex;
+      const item = state.items[idx];
+
+      const wrap = document.createElement("div");
+      wrap.className = "item-wrap";
+      wrap.dataset.index = idx;
+      wrap.innerHTML = `
+        <div class="item">
+          <div class="checkbox" data-role="checkbox">✓</div>
+          <div class="item-text">${item.text}</div>
+          <button class="note-toggle" type="button" data-role="note-toggle">💬</button>
+          <div class="item-time"></div>
+        </div>
+        <div class="note-area" data-role="note-area" style="display:none">
+          <textarea class="note-textarea" data-role="note-textarea" placeholder="Почему не сделано? Комментарий засчитывается как выполнение пункта."></textarea>
+          <button class="note-save-btn" type="button" data-role="note-save">Сохранить комментарий</button>
+        </div>
+      `;
+
+      wrap.querySelector('[data-role="checkbox"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleChecked(idx);
+      });
+      wrap.querySelector(".item-text").addEventListener("click", () => toggleChecked(idx));
+
+      const noteToggleBtn = wrap.querySelector('[data-role="note-toggle"]');
+      const noteArea = wrap.querySelector('[data-role="note-area"]');
+      const noteTextarea = wrap.querySelector('[data-role="note-textarea"]');
+      noteTextarea.value = item.comment;
+
+      noteToggleBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = noteArea.style.display !== "none";
+        noteArea.style.display = isOpen ? "none" : "block";
+        if (!isOpen) noteTextarea.focus();
+      });
+
+      wrap.querySelector('[data-role="note-save"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        saveComment(idx, noteTextarea.value);
+        noteArea.style.display = "none";
+      });
+
+      secDiv.appendChild(wrap);
+      globalIndex++;
+    });
+
+    container.appendChild(secDiv);
+  });
+  refreshAllRows();
+}
+
+function refreshAllRows(){
+  state.items.forEach((item, idx) => refreshRow(idx));
+}
+
+function refreshRow(idx){
+  const item = state.items[idx];
+  const wrap = document.querySelector(`.item-wrap[data-index="${idx}"]`);
+  if (!wrap) return;
+  const row = wrap.querySelector(".item");
+  const done = isItemDone(item);
+  const commentOnly = done && !item.checked;
+
+  row.classList.toggle("done", done);
+  row.classList.toggle("done-comment", commentOnly);
+  row.querySelector('[data-role="checkbox"]').textContent = commentOnly ? "💬" : "✓";
+  row.querySelector(".item-time").textContent = done ? item.timeStr : "";
+
+  const noteToggleBtn = wrap.querySelector('[data-role="note-toggle"]');
+  noteToggleBtn.classList.toggle("has-note", item.comment.trim().length > 0);
+}
+
+function toggleChecked(idx){
+  const item = state.items[idx];
+  item.checked = !item.checked;
+  if (isItemDone(item)) item.timeStr = nowTimeStr();
+  else if (!item.comment.trim()) item.timeStr = null;
+  refreshRow(idx);
+  updateProgress();
+}
+
+function saveComment(idx, text){
+  const item = state.items[idx];
+  item.comment = text.trim();
+  if (isItemDone(item)) item.timeStr = nowTimeStr();
+  else item.timeStr = null;
+  refreshRow(idx);
+  updateProgress();
+}
+
+function updateProgress(){
+  const done = state.items.filter(isItemDone).length;
+  const total = state.totalItems;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  document.getElementById("progress-count").textContent = `${done} / ${total} выполнено`;
+  document.getElementById("progress-fill").style.width = pct + "%";
+
+  const finishBtn = document.getElementById("finish-btn");
+  const finishHint = document.getElementById("finish-hint");
+  finishBtn.dataset.ready = (done === total) ? "1" : "0";
+
+  if (done === total){
+    finishBtn.classList.add("ready");
+    finishHint.textContent = "Все пункты выполнены";
+    finishHint.classList.remove("angry");
+  } else {
+    finishBtn.classList.remove("ready");
+    finishHint.textContent = `Выполнено ${done} из ${total} пунктов`;
+    finishHint.classList.remove("angry");
+  }
+}
+
+/* ============ RENDER: done screen ============ */
+
+function finishChecklist(){
+  const done = state.items.filter(isItemDone).length;
+  if (done !== state.totalItems) return;
+
+  state.completedAt = nowISO();
+  const cfg = CHECKLISTS[state.checklistType];
+
+  const record = {
+    employee: state.employee,
+    checklist_type: state.checklistType,
+    date: nowISODate(),
+    started_at: state.startedAt,
+    completed_at: state.completedAt,
+    status: "completed",
+    completed_items: state.items.map(i => ({
+      text: i.text,
+      checked: i.checked,
+      comment: i.comment || null,
+      time: i.timeStr,
+    })),
+  };
+  // Structured record — ready to be sent to Sheets/Airtable/Supabase in a later stage.
+  console.log("Closing record:", record);
+
+  const startD = new Date(state.startedAt);
+  const endD = new Date(state.completedAt);
+
+  const isLate = (endD.getHours() > LATE_CLOSE_HOUR ||
+                  (endD.getHours() === LATE_CLOSE_HOUR && endD.getMinutes() >= LATE_CLOSE_MINUTE))
+                 && endD.getHours() < 12;
+
+  sendReportToManager(record, cfg, isLate);
+
+  document.getElementById("done-title").textContent = `${cfg.label}: завершено`;
+  const badge = document.getElementById("done-badge");
+  const reaction = document.getElementById("done-reaction");
+  if (isLate){
+    badge.textContent = "🔴";
+    reaction.textContent = LATE_REACTIONS[Math.floor(Math.random() * LATE_REACTIONS.length)];
+    reaction.style.display = "block";
+  } else {
+    badge.textContent = "🟢";
+    reaction.style.display = "none";
+  }
+
+  const card = document.getElementById("done-card");
+  card.innerHTML = `
+    <div class="done-row"><span class="label">Чек-лист</span><span class="value">${cfg.label}</span></div>
+    <div class="done-row"><span class="label">Ответственный</span><span class="value">${state.employee}</span></div>
+    <div class="done-row"><span class="label">Дата</span><span class="value">${pad(endD.getDate())}.${pad(endD.getMonth()+1)}.${endD.getFullYear()}</span></div>
+    <div class="done-row"><span class="label">Начало</span><span class="value">${pad(startD.getHours())}:${pad(startD.getMinutes())}</span></div>
+    <div class="done-row"><span class="label">Завершение</span><span class="value">${pad(endD.getHours())}:${pad(endD.getMinutes())}</span></div>
+    <div class="done-row"><span class="label">Выполнено</span><span class="value ok">${state.totalItems} / ${state.totalItems}</span></div>
+  `;
+
+  showScreen("screen-done");
+}
+
+/* ============ NAVIGATION ============ */
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function goToEmployeeSelect(){
+  showScreen("screen-start");
+}
+
+function goHome(){
+  state = { checklistType: null, employee: null, startedAt: null, completedAt: null, items: [], totalItems: 0 };
+  showScreen("screen-menu");
+}
+
+/* ============ INIT ============ */
+
+document.getElementById("finish-btn").addEventListener("click", () => {
+  const btn = document.getElementById("finish-btn");
+  if (btn.dataset.ready === "1"){
+    finishChecklist();
+  } else {
+    const hint = document.getElementById("finish-hint");
+    hint.textContent = INCOMPLETE_CLICK_REACTIONS[Math.floor(Math.random() * INCOMPLETE_CLICK_REACTIONS.length)];
+    hint.classList.add("angry");
+    btn.classList.remove("shake");
+    void btn.offsetWidth; // restart animation
+    btn.classList.add("shake");
+  }
+});
+document.getElementById("home-btn").addEventListener("click", goHome);
+document.getElementById("back-link").addEventListener("click", goToEmployeeSelect);
+document.getElementById("back-to-menu").addEventListener("click", goHome);
+
+renderMenu();
+
+// Telegram Mini App hook — becomes active automatically once opened inside Telegram.
+// Safe no-op when tested in a regular mobile browser.
+if (window.Telegram && window.Telegram.WebApp){
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
+}
+</script>
+</body>
+</html>
