@@ -101,7 +101,7 @@
   }
 
   /* ---------- Checklist screen ---------- */
-  #screen-checklist{ padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px)); }
+  #screen-checklist{ padding-bottom: 24px; }
 
   .top-bar{
     position:sticky;
@@ -273,14 +273,10 @@
   .note-save-btn:active{ background: var(--amber); color:#241a08; }
 
   .bottom-bar{
-    position:fixed;
-    bottom:0;
-    left:50%;
-    transform: translateX(-50%);
     width:100%;
     max-width:480px;
-    background: linear-gradient(to top, var(--bg) 70%, transparent);
-    padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    margin: 24px auto 0;
+    padding: 0 20px calc(20px + env(safe-area-inset-bottom, 0px));
   }
   .finish-hint{
     text-align:center;
