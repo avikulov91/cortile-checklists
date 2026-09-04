@@ -581,7 +581,15 @@ const INCOMPLETE_CLICK_REACTIONS = [
 const TELEGRAM_BOT_TOKEN = "8841669164:AAFGqqwndkIzZJZLai3Gq3sd6Jg0-zJp-og";
 // Chat id'ы всех, кому должен приходить отчёт о закрытии.
 // Чтобы добавить ещё одного человека — просто допиши его chat_id в массив.
-const REPORT_RECIPIENTS = ["85970845"];
+const REPORT_RECIPIENTS = [
+  "85970845",   // Алексей — управляющий
+  "324248366",  // Татьяна — менеджер (полный доступ)
+  "235437959",  // Катя — совладелец (полный доступ)
+  "1551052646", // Никита
+  "251209134",  // Семён
+  "715385273",  // Антон
+  // "ID_ОЛИ",  // добавить, когда Оля напишет боту
+];
 
 function buildReportText(record, cfg, isLate){
   const startD = new Date(record.started_at);
