@@ -101,7 +101,7 @@
   }
 
   /* ---------- Checklist screen ---------- */
-  #screen-checklist{ padding-bottom: 110px; }
+  #screen-checklist{ padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px)); }
 
   .top-bar{
     position:sticky;
@@ -280,7 +280,7 @@
     width:100%;
     max-width:480px;
     background: linear-gradient(to top, var(--bg) 70%, transparent);
-    padding: 20px 20px 24px;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom, 0px));
   }
   .finish-hint{
     text-align:center;
