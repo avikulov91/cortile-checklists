@@ -578,10 +578,9 @@ const INCOMPLETE_CLICK_REACTIONS = [
   "Ещё не всё отмечено — не хитри.",
 ];
 
-// ⚠️ Быстрый вариант без сервера: токен бота уходит в открытый код страницы.
-// Любой, кто откроет исходный код приложения, сможет его увидеть и слать
-// сообщения от имени бота. Замени плейсхолдеры на реальные значения.
-const TELEGRAM_BOT_TOKEN = "8841669164:AAFGqqwndkIzZJZLai3Gq3sd6Jg0-zJp-og";
+// Отчёт уходит не напрямую в Telegram, а через Cloudflare Worker, который
+// прячет токен бота на сервере. В коде страницы токена больше нет.
+const RELAY_URL = "https://cortile13-relay.avikulov91.workers.dev";
 // Chat id'ы всех, кому должен приходить отчёт о закрытии.
 // Чтобы добавить ещё одного человека — просто допиши его chat_id в массив.
 const REPORT_RECIPIENTS = [
@@ -622,18 +621,16 @@ function buildReportText(record, cfg, isLate){
 }
 
 function sendReportToManager(record, cfg, isLate){
-  if (TELEGRAM_BOT_TOKEN.startsWith("ВСТАВЬ") || REPORT_RECIPIENTS.length === 0) {
-    console.warn("Отчёт не отправлен: укажи TELEGRAM_BOT_TOKEN и хотя бы один chat_id в REPORT_RECIPIENTS.");
+  if (REPORT_RECIPIENTS.length === 0) {
+    console.warn("Отчёт не отправлен: нет получателей в REPORT_RECIPIENTS.");
     return;
   }
   const text = buildReportText(record, cfg, isLate);
-  REPORT_RECIPIENTS.forEach(chatId => {
-    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
-    }).catch(err => console.error(`Не удалось отправить отчёт получателю ${chatId}:`, err));
-  });
+  fetch(RELAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, chat_ids: REPORT_RECIPIENTS }),
+  }).catch(err => console.error("Не удалось отправить отчёт через relay:", err));
 }
 
 /* ============ STATE ============ */
